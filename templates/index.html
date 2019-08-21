@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}
+Index
+{% endblock %}
+{% block head %}
+{% endblock %}
+{% block content %}
+<video id="player" controls autoplay></video>
+<canvas id="canvas" width="640" height="480"></canvas>
+
+<script>
+  const player = document.getElementById('player');
+  const canvas = document.getElementById('canvas');
+  var mediaStream;
+  var imageCapture;
+
+  const constraints = {
+    video: true
+  };
+
+  function getSS() {
+    // Draw the video frame to the canvas.
+    var context = canvas.getContext('2d');
+    imageCapture.grabFrame().then(function(imageBitmap) {
+        context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+    });
+  };
+
+  // Attach the video stream to the video element and autoplay.
+  navigator.mediaDevices.getUserMedia(constraints)
+    .then((stream) => {
+      //mediaStream = stream;
+      imageCapture = new ImageCapture(stream.getVideoTracks()[0]);
+      setInterval(getSS, 5000);
+    });
+
+</script>
+{% endblock %}
