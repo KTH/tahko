@@ -5,34 +5,85 @@ Index
 {% block head %}
 {% endblock %}
 {% block content %}
-<video id="player" controls autoplay></video>
-<canvas id="canvas" width="640" height="480"></canvas>
-
+<script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js" integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I=" crossorigin="anonymous"></script>
+<video id="video" width="640" height="480" controls autoplay></video>
+<img id="img" width="640" height="480"></img>
+<img id="img2" width="640" height="480"></img>
+<button id="btn" onclick="toggleStream()">Switch</button>
 <script>
-  const player = document.getElementById('player');
-  const canvas = document.getElementById('canvas');
+
+  var socket = io();
+  var myId = Math.floor(Math.random() * 10000);
+  socket.on('connect', () => {
+    console.log('Socket connected');
+  });
+
+  socket.on('blob', (blob, senderId) => {
+    console.log(blob);
+    var b = new Blob([blob], {type: 'application/octet-stream'});
+    if (senderId !== myId) {
+      img2.src = URL.createObjectURL(b);
+    }
+  });
+
+  const video = document.getElementById('video');
+  const img = document.getElementById('img');
+  const btn = document.getElementById('btn');
   var mediaStream;
   var imageCapture;
+  var showingVideo = false;
+  var intervalTimer;
 
-  const constraints = {
+  const imageConstraints = {
     video: true
   };
+  const videoConstraints = {
+    video: true,
+    audio: true
+  };
+
+  function toggleStream() {
+    console.log('Switching');
+    showingVideo = !showingVideo;
+    if (showingVideo) {
+      initStream(videoConstraints, showingVideo);
+    } else {
+      initStream(imageConstraints, showingVideo);
+    }
+  } 
 
   function getSS() {
-    // Draw the video frame to the canvas.
-    var context = canvas.getContext('2d');
-    imageCapture.grabFrame().then(function(imageBitmap) {
-        context.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+    imageCapture.takePhoto().then(function(blob) {
+        img.src = URL.createObjectURL(blob);
+        socket.binary(true).emit('blob', blob, myId);
+    })
+    .catch((err) => {
+      console.log('takePhoto(): ' + err);
     });
   };
 
-  // Attach the video stream to the video element and autoplay.
-  navigator.mediaDevices.getUserMedia(constraints)
+  function initStream(constraints, showVideo) {
+    navigator.mediaDevices.getUserMedia(constraints)
     .then((stream) => {
-      //mediaStream = stream;
-      imageCapture = new ImageCapture(stream.getVideoTracks()[0]);
-      setInterval(getSS, 5000);
+      if (!showVideo) {
+        video.srcObject = null;
+        video.style.display = 'none';
+        img.style.display = 'block';
+        imageCapture = new ImageCapture(stream.getVideoTracks()[0]);
+        intervalTimer = setInterval(getSS, 1000);
+      } else {
+        img.style.display = 'none';
+        video.style.display = 'block';
+        clearInterval(intervalTimer);
+        video.srcObject = stream;
+      }
+    })
+    .catch((err) => {
+      console.log('GetUserMedia: ' + err);
     });
+  }
+
+  initStream(imageConstraints, showingVideo);
 
 </script>
 {% endblock %}

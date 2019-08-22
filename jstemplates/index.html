@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+  <head>
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <!--link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"-->
+    <title></title>
+    <style>
+        .container {
+            max-width: 960px;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+ </head>
+ <body class="bg-light">
+    <div class="container">
+        <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js" integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I=" crossorigin="anonymous"></script>
+        <video id="video" width="640" height="480" controls autoplay></video>
+        <video id="video2" width="640" height="480" controls autoplay></video>
+        <img id="img" width="640" height="480"></img>
+        <img id="img2" width="640" height="480"></img>
+        <button id="btn" onclick="toggleStream()">Switch</button>
+        <script>
+        
+            var socket = io();
+            var myId = Math.floor(Math.random() * 10000);
+            socket.on('connect', () => {
+                console.log('Socket connected');
+            });
+        
+            socket.on('blob', (blob, senderId) => {
+                if (senderId !== myId) {
+                    img2.src = URL.createObjectURL(new Blob([blob], {type: 'application/octet-stream'}));
+                }
+            });
+
+            socket.on('stream', (data, senderId) => {
+                if (senderId !== myId) {
+                    video2.src = URL.createObjectURL(new Blob([data], {type: 'application/octet-stream'}));
+                }
+            });
+        
+            const video = document.getElementById('video');
+            const img = document.getElementById('img');
+            const btn = document.getElementById('btn');
+            var mediaStream;
+            var imageCapture;
+            var showingVideo = false;
+            var intervalTimer;
+            var mediaRecorder;
+        
+            const imageConstraints = {
+                video: true
+            };
+            const videoConstraints = {
+                video: true,
+                audio: true
+            };
+        
+            function toggleStream() {
+                console.log('Switching');
+                showingVideo = !showingVideo;
+                if (showingVideo) {
+                    initStream(videoConstraints, showingVideo);
+                } else {
+                    initStream(imageConstraints, showingVideo);
+                }
+            } 
+        
+            function getSS() {
+                imageCapture.takePhoto().then(function(blob) {
+                    img.src = URL.createObjectURL(blob);
+                    socket.binary(true).emit('blob', blob, myId);
+                })
+                .catch((err) => {
+                    console.log('takePhoto(): ' + err);
+                });
+            };
+        
+            function initStream(constraints, showVideo) {
+                navigator.mediaDevices.getUserMedia(constraints)
+                .then((stream) => {
+                    if (!showVideo) {
+                        video.srcObject = null;
+                        video.style.display = 'none';
+                        img.style.display = 'block';
+                        imageCapture = new ImageCapture(stream.getVideoTracks()[0]);
+                        intervalTimer = setInterval(getSS, 1000);
+                        if (mediaRecorder != null && mediaRecorder.state == 'recording') {
+                            console.log('Recorder stopped')
+                            mediaRecorder.stop();
+                        }
+                    } else {
+                        img.style.display = 'none';
+                        video.style.display = 'block';
+                        clearInterval(intervalTimer);
+                        video.srcObject = stream;
+                        mediaRecorder = new MediaRecorder(stream);
+                        mediaRecorder.start(100);
+                        mediaRecorder.ondataavailable = function(e) {
+                            socket.emit('stream', e.data, myId);
+                        }
+                        mediaRecorder.onstart = function() {
+                            console.log('Started');
+                        }
+                    }
+                })
+                .catch((err) => {
+                    console.log('GetUserMedia: ' + err);
+                });
+            }
+        
+            initStream(imageConstraints, showingVideo);
+        
+        </script>
+    </div>
+    <footer class="my-5 pt-5 text-muted text-center text-small">
+    </footer>
+  </body>
+</html>
