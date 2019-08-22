@@ -38,7 +38,8 @@
 
             socket.on('stream', (data, senderId) => {
                 if (senderId !== myId) {
-                    video2.src = URL.createObjectURL(new Blob([data], {type: 'application/octet-stream'}));
+                    mediaSource.addSourceBuffer(data);
+                    if (video2.src == null) video2.src = mediaSource;
                 }
             });
         
@@ -50,6 +51,7 @@
             var showingVideo = false;
             var intervalTimer;
             var mediaRecorder;
+            var mediaSource = new MediaSource();
         
             const imageConstraints = {
                 video: true
