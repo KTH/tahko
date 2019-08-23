@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+  <head>
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <!--link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"-->
+    <title></title>
+    <meta charset="UTF-8"></head>
+</head>
+ <body>
+    <div>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js" integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I=" crossorigin="anonymous"></script>
+        <style>
+            .flexing {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;                
+            }
+        </style>
+        <div class='flexing' id='flexdiv'>
+            <video id='selfView' width='640' height='480' autoplay></video>
+            <video id='remoteView' width='640' height='480' autoplay></video>
+        </div>
+        <script>
+            
+        // handles JSON.stringify/parse
+        const signaling = new io();
+        const constraints = {audio: true, video: true};
+        const configuration = {iceServers: [{urls: 'stuns:stun.l.google.com:19302'}]};
+        const pc = new RTCPeerConnection(configuration);
+
+        // send any ice candidates to the other peer
+        pc.onicecandidate = ({candidate}) => {
+            console.log('New candidate');
+            signaling.emit('message', {candidate});
+        };
+
+        // let the "negotiationneeded" event trigger offer generation
+        pc.onnegotiationneeded = async () => {
+            try {
+                if (pc.signalingState === 'stable') {
+                    console.log('Negotiation needed');
+                    await pc.setLocalDescription(await pc.createOffer());
+                    // send the offer to the other peer
+                    signaling.emit('message', {desc: pc.localDescription});
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        // once remote track media arrives, show it in remote video element
+        pc.ontrack = (event) => {
+            // don't set srcObject again if it is already set.
+            var remoteView = document.getElementById('remoteView');
+            if (remoteView.srcObject) return;
+            remoteView.srcObject = event.streams[0];
+        };
+
+        // call start() to initiate
+        async function start() {
+            try {
+                // get local stream, show it in self-view and add it to be sent
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                stream.getTracks().forEach((track) =>
+                    pc.addTrack(track, stream)
+                );
+                var selfView = document.getElementById('selfView');
+                selfView.srcObject = stream;
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        signaling.on('message', async ({desc, candidate}, id) => {
+            try {
+                if (desc) {
+                    // if we get an offer, we need to reply with an answer
+                    if (desc.type === 'offer') {
+                        if (pc.signalingState === 'stable') {
+                            console.log('Got offer: ' + JSON.stringify(desc));
+                            await pc.setRemoteDescription(desc);
+                            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                            stream.getTracks().forEach((track) =>
+                                pc.addTrack(track, stream)
+                            );
+                            await pc.setLocalDescription(await pc.createAnswer());
+                            signaling.emit('message', {desc: pc.localDescription});
+                        }
+                    } else if (desc.type === 'answer') {
+                        console.log('Got answer: ' + desc);
+                        await pc.setRemoteDescription(desc);
+                    } else {
+                        console.log('Unsupported SDP type.');
+                    }
+                } else if (candidate) {
+                    console.log('Got candidate');
+                    await pc.addIceCandidate(candidate);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        start();
+
+        </script>
+    </div>
+  </body>
+</html>
