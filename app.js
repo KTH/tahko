@@ -17,11 +17,21 @@ function handler (req, res) {
 }
 
 io.on('connection', function (socket) {
-  socket.on('blob', function (blob, myId) {
-    socket.broadcast.emit('blob', blob, myId);
+  console.log('Server got connection: ' + socket.id);
+  socket.emit('id', socket.id);
+  socket.broadcast.emit('client-connected', socket.id);
+
+  socket.on('blob', function (blob) {
+    socket.broadcast.emit('blob', blob, socket.id);
   });
 
-  socket.on('stream', function(blob, myId) {
-    socket.broadcast.emit('stream', blob, myId);
+  socket.on('im-here', function(id) {
+    console.log('Sending im here for id: ' + id);
+    socket.broadcast.emit('im-here', id);
   });
+
+  socket.on('disconnect', function() {
+    socket.broadcast.emit('client-disconnected', socket.id);
+  });
+
 });
