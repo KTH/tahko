@@ -10,20 +10,41 @@
     <div>
         <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js" integrity="sha256-yr4fRk/GU1ehYJPAs8P4JlTgu0Hdsp4ZKrx8bDEDC3I=" crossorigin="anonymous"></script>
         <style>
-            .flexing {
-                display: flex;
-                flex-direction: row;
-                flex-wrap: wrap;                
+            body {
+                background: #1d1e22;
             }
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                grid-gap: 1rem;
+                padding:  1rem;
+            }
+            .grid .avatar {
+                padding: 1em;
+            }
+
+            .grid .avatar img {
+                width: 100%;
+                border-radius: 1rem;
+                border-bottom:  1rem solid #2f2f33;
+            }
+
+            .grid .avatar #myImage {
+                border-bottom-color: green;
+            }
+
+
         </style>
-        <div class='flexing' id='flexdiv'>
-            <img id="myImage" width="640" height="480"></img>
+        <div class='grid' id='grid'>
+            <div class="avatar">
+                <img id="myImage" />
+            </div>
         </div>
         <script>
             var socket = io();
             var myId;
             const myImage = document.getElementById('myImage');
-            const flexdiv = document.getElementById('flexdiv');
+            const grid = document.getElementById('grid');
             var imageCapture;
             var intervalTimer;
         
@@ -53,7 +74,7 @@
                 if (id != myId) {
                     console.log('Client with id ' + id + ' disconnected');
                     var node = document.getElementById(id);
-                    flexdiv.removeChild(node);
+                    grid.removeChild(node);
                 }
             });
 
@@ -73,11 +94,16 @@
             });
 
             function createNewCamera(id) {
-                var node = document.createElement("img");
-                node.id = id;
-                node.width = 640;
-                node.height = 480;
-                flexdiv.appendChild(node);
+                let avatar = document.createElement('div');
+                avatar.setAttribute('class', 'avatar');
+
+                let image = document.createElement("img");
+                image.id = id;
+
+                avatar.appendChild(image)
+                console.log(avatar.outerHTML)
+                
+                grid.appendChild(avatar);
             }
                 
             function getSS() {
