@@ -1,4 +1,4 @@
-from kthse/kth-nodejs:10.14.0
+from kthse/kth-nodejs:12.0.0
 
 COPY jstemplates jstemplates
 COPY app.js app.js
